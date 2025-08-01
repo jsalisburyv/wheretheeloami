@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useUserStats } from '../hooks/useUserStats';
 import { ProfilePage } from './ProfilePage';
 import { ScoreSubmission } from './ScoreSubmission';
+import { Leaderboard } from './Leaderboard';
 import { HistoryChart } from './HistoryChart';
 import { StatsCard } from './StatsCard';
 
@@ -27,6 +28,8 @@ export function Dashboard() {
         setCurrentPage('profile');
       } else if (window.location.hash === '#submit-score') {
         setCurrentPage('submit-score');
+      } else if (window.location.hash === '#leaderboard') {
+        setCurrentPage('leaderboard');
       } else {
         setCurrentPage('dashboard');
       }
@@ -48,6 +51,11 @@ export function Dashboard() {
   // Show score submission page if current page is submit-score
   if (currentPage === 'submit-score') {
     return <ScoreSubmission />;
+  }
+
+  // Show leaderboard page if current page is leaderboard
+  if (currentPage === 'leaderboard') {
+    return <Leaderboard />;
   }
 
   // Helper functions for score chart

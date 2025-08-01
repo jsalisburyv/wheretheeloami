@@ -21,17 +21,32 @@ export function ProfilePage() {
     setMessage('');
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      // Update user metadata
+      const { error: authError } = await supabase.auth.updateUser({
         data: {
           display_name: displayName,
         },
       });
 
-      if (error) {
-        setMessage('Error updating display name: ' + error.message);
-      } else {
-        setMessage('Display name updated successfully!');
+      if (authError) {
+        setMessage('Error updating display name: ' + authError.message);
+        return;
       }
+
+      // Also update the profiles table
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: user?.id,
+        display_name: displayName,
+        email: user?.email,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (profileError) {
+        console.warn('Could not update profiles table:', profileError);
+        // Don't show error to user since auth update succeeded
+      }
+
+      setMessage('Display name updated successfully!');
     } catch {
       setMessage('An error occurred while updating display name');
     } finally {
@@ -85,9 +100,22 @@ export function ProfilePage() {
 
       if (updateError) {
         setMessage('Error updating avatar: ' + updateError.message);
-      } else {
-        setMessage('Avatar updated successfully!');
+        return;
       }
+
+      // Also update the profiles table
+      const { error: profileError } = await supabase.from('profiles').upsert({
+        id: user?.id,
+        avatar_url: publicUrl,
+        updated_at: new Date().toISOString(),
+      });
+
+      if (profileError) {
+        console.warn('Could not update profiles table:', profileError);
+        // Don't show error to user since auth update succeeded
+      }
+
+      setMessage('Avatar updated successfully!');
     } catch {
       setMessage('An error occurred while uploading image');
     } finally {
