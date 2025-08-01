@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Topbar } from './Topbar';
 import { Sidebar } from './Sidebar';
 
 interface LayoutProps {
@@ -10,6 +11,9 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      {/* Topbar */}
+      <Topbar />
+
       <div className="flex">
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

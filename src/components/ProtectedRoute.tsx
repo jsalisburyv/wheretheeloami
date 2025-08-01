@@ -1,5 +1,5 @@
 import { useAuth } from '../hooks/useAuth';
-import { AuthComponent } from './Auth';
+import { CustomAuth } from './CustomAuth';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -17,7 +17,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) {
-    return <AuthComponent />;
+    return <CustomAuth />;
   }
 
   return <>{children}</>;

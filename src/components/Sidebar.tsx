@@ -1,5 +1,4 @@
 import { useAuth } from '../hooks/useAuth';
-import { ThemeToggle } from './ThemeToggle';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -36,40 +35,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-col h-full">
           {/* Sidebar header */}
           <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <img src="/logo.png" alt="Logo" className="w-8 h-8" />
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Where the ELO am i?
-              </h2>
-            </div>
-            <div className="flex items-center space-x-2">
-              <ThemeToggle />
-              <button
-                onClick={onClose}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-
-          {/* User info */}
-          <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <span className="text-white text-sm font-medium">
-                  {user?.email?.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {user?.email?.split('@')[0]}
-                </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                  {user?.email}
-                </p>
-              </div>
-            </div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              Navigation
+            </h2>
+            <button
+              onClick={onClose}
+              className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+            >
+              ✕
+            </button>
           </div>
 
           {/* Navigation */}
@@ -86,8 +60,26 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             ))}
           </nav>
 
-          {/* Sign out button */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
+          {/* User Profile and Sign Out - Bottom */}
+          <div className="p-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
+            {/* User Profile */}
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
+                <span className="text-white text-sm font-medium">
+                  {user?.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {user?.email?.split('@')[0]}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {user?.email}
+                </p>
+              </div>
+            </div>
+
+            {/* Sign Out Button */}
             <button
               onClick={signOut}
               className="w-full flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-red-600 dark:hover:text-red-400 transition-colors"

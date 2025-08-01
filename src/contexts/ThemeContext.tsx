@@ -3,25 +3,24 @@ import { ThemeContext } from './ThemeContextDef';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [isDark, setIsDark] = useState(() => {
-    // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-    const isDarkMode =
-      localStorage.theme === 'dark' ||
-      (!('theme' in localStorage) &&
-        window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // Check localStorage first
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      return savedTheme === 'dark';
+    }
 
-    // Set the initial class
-    document.documentElement.classList.toggle('dark', isDarkMode);
-
-    return isDarkMode;
+    // Default to light mode
+    return false;
   });
 
   useEffect(() => {
+    // Set the theme class on the HTML element
     if (isDark) {
-      localStorage.theme = 'dark';
       document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
     } else {
-      localStorage.theme = 'light';
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
     }
   }, [isDark]);
 
