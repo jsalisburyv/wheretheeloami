@@ -1,14 +1,49 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { ProfilePage } from './ProfilePage';
 
 export function Dashboard() {
   const { user } = useAuth();
+  const [currentPage, setCurrentPage] = useState('dashboard');
+
+  // Get display name: display_name from metadata if set, otherwise email prefix
+  const getDisplayName = () => {
+    const displayName = user?.user_metadata?.display_name;
+    if (displayName) {
+      return displayName;
+    }
+    return user?.email?.split('@')[0] || 'User';
+  };
+
+  // Listen for hash changes
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash === '#profile') {
+        setCurrentPage('profile');
+      } else {
+        setCurrentPage('dashboard');
+      }
+    };
+
+    // Set initial page based on hash
+    handleHashChange();
+
+    // Listen for hash changes
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  // Show profile page if current page is profile
+  if (currentPage === 'profile') {
+    return <ProfilePage />;
+  }
 
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Welcome back, {user?.email?.split('@')[0]}!
+          Welcome back, {getDisplayName()}!
         </h1>
         <p className="text-gray-600 dark:text-gray-300">
           Ready for today's GeoGuessr challenge? Submit your score and see how
