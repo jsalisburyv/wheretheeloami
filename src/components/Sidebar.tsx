@@ -9,11 +9,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user, signOut } = useAuth();
 
   const navItems = [
-    { name: 'Dashboard', href: '#', icon: '🏠' },
-    { name: 'Submit Score', href: '#', icon: '📊' },
+    { name: 'Statistics', href: '#', icon: '🏠' },
+    { name: 'Submit Score', href: '#submit-score', icon: '📊' },
     { name: 'Leaderboard', href: '#', icon: '🏆' },
-    { name: 'Stats', href: '#', icon: '📈' },
-    { name: 'Settings', href: '#', icon: '⚙️' },
   ];
 
   // Get display name: display_name from metadata if set, otherwise email prefix
