@@ -8,7 +8,9 @@ interface UserStats {
   bestStreak: number;
   currentStreak: number;
   currentElo: number;
+  currentMarginElo: number;
   maxElo: number;
+  maxMarginElo: number;
   gamesPlayed: number;
   totalWins: number;
   loading: boolean;
@@ -27,7 +29,9 @@ export function useUserStats() {
     bestStreak: 0,
     currentStreak: 0,
     currentElo: 1000,
+    currentMarginElo: 1000,
     maxElo: 1000,
+    maxMarginElo: 1000,
     gamesPlayed: 0,
     totalWins: 0,
     loading: true,
@@ -93,8 +97,9 @@ export function useUserStats() {
       const bestStreak =
         playerStats?.max_win_streak || calculateBestStreak(games);
 
-      // Get Elo stats from elo_history table
-      const { currentElo, maxElo } = await getEloStats(user.id);
+      // Get Elo stats from current_elos table
+      const { currentElo, currentMarginElo, maxElo, maxMarginElo } =
+        await getEloStats(user.id);
 
       setStats({
         averageScore,
@@ -102,7 +107,9 @@ export function useUserStats() {
         bestStreak,
         currentStreak,
         currentElo,
+        currentMarginElo,
         maxElo,
+        maxMarginElo,
         gamesPlayed,
         totalWins,
         loading: false,
@@ -153,28 +160,59 @@ export function useUserStats() {
 
   const getEloStats = async (userId: string) => {
     try {
-      const { data: eloHistory, error } = await supabase
+      // Try to get current Elo from current_elos table first
+      const { data: currentEloData, error: currentError } = await supabase
+        .from('current_elos')
+        .select('basic_elo, margin_elo')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      // Get Elo history for current and max values
+      const { data: eloHistory, error: historyError } = await supabase
         .from('elo_history')
-        .select('basic_elo')
+        .select('basic_elo, margin_elo, game_date')
         .eq('user_id', userId)
         .order('game_date', { ascending: false });
 
-      if (error) {
-        console.error('Error loading Elo history:', error);
-        return { currentElo: 1000, maxElo: 1000 };
+      if (currentError) {
+        console.error('Error loading current Elo:', currentError);
       }
 
-      if (!eloHistory || eloHistory.length === 0) {
-        return { currentElo: 1000, maxElo: 1000 };
+      if (historyError) {
+        console.error('Error loading Elo history:', historyError);
       }
 
-      const currentElo = eloHistory[0].basic_elo;
-      const maxElo = Math.max(...eloHistory.map((h) => h.basic_elo));
+      // Default values - use 1500 as default (standard Elo starting point)
+      let currentElo = 1500;
+      let currentMarginElo = 1500;
+      let maxElo = 1500;
+      let maxMarginElo = 1500;
 
-      return { currentElo, maxElo };
+      // Try to get current Elo from current_elos first, then fallback to history
+      if (currentEloData) {
+        currentElo = currentEloData.basic_elo ?? 1500;
+        currentMarginElo = currentEloData.margin_elo ?? 1500;
+      } else if (eloHistory && eloHistory.length > 0) {
+        // Get current Elo from the most recent entry
+        currentElo = eloHistory[0].basic_elo ?? 1500;
+        currentMarginElo = eloHistory[0].margin_elo ?? 1500;
+      }
+
+      // Calculate max values from history
+      if (eloHistory && eloHistory.length > 0) {
+        maxElo = Math.max(...eloHistory.map((h) => h.basic_elo ?? 1500));
+        maxMarginElo = Math.max(...eloHistory.map((h) => h.margin_elo ?? 1500));
+      }
+
+      return { currentElo, currentMarginElo, maxElo, maxMarginElo };
     } catch (error) {
       console.error('Error getting Elo stats:', error);
-      return { currentElo: 1000, maxElo: 1000 };
+      return {
+        currentElo: 1500,
+        currentMarginElo: 1500,
+        maxElo: 1500,
+        maxMarginElo: 1500,
+      };
     }
   };
 

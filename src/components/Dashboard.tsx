@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { ProfilePage } from './ProfilePage';
 import { ScoreSubmission } from './ScoreSubmission';
 import { Leaderboard } from './Leaderboard';
+import { UserProfile } from './UserProfile';
 import { HistoryChart } from './HistoryChart';
 import { StatsCard } from './StatsCard';
 
@@ -33,6 +34,8 @@ export function Dashboard() {
         setCurrentPage('submit-score');
       } else if (window.location.hash === '#leaderboard') {
         setCurrentPage('leaderboard');
+      } else if (window.location.hash.startsWith('#user-')) {
+        setCurrentPage('user-profile');
       } else {
         setCurrentPage('dashboard');
       }
@@ -59,6 +62,12 @@ export function Dashboard() {
   // Show leaderboard page if current page is leaderboard
   if (currentPage === 'leaderboard') {
     return <Leaderboard />;
+  }
+
+  // Show user profile page if current page is user-profile
+  if (currentPage === 'user-profile') {
+    const userId = window.location.hash.replace('#user-', '');
+    return <UserProfile userId={userId} />;
   }
 
   // Helper functions for score chart
@@ -96,14 +105,7 @@ export function Dashboard() {
         return;
       }
 
-      // Call the Edge Function using Supabase client
-      console.log('Calling Edge Function: elo-update');
-      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
-
       try {
-        // Try using the REST API directly with proper headers
-        console.log('Testing function availability...');
-
         const response = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elo-update`,
           {
@@ -119,11 +121,7 @@ export function Dashboard() {
           }
         );
 
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
-
         const responseText = await response.text();
-        console.log('Response text:', responseText);
 
         let result;
         try {
@@ -210,7 +208,7 @@ export function Dashboard() {
       {/* Stats Cards - Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
-          title="Current Elo"
+          title="Basic Elo"
           value={userStats.currentElo}
           icon="🏆"
           iconBgColor="bg-blue-100 dark:bg-blue-900"
@@ -218,9 +216,9 @@ export function Dashboard() {
           loading={userStats.loading}
         />
         <StatsCard
-          title="Average Score"
-          value={userStats.averageScore}
-          icon="📈"
+          title="Margin Elo"
+          value={userStats.currentMarginElo}
+          icon="⚡"
           iconBgColor="bg-indigo-100 dark:bg-indigo-900"
           iconColor="text-indigo-600 dark:text-indigo-400"
           loading={userStats.loading}
@@ -246,7 +244,7 @@ export function Dashboard() {
       {/* Stats Cards - Row 2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatsCard
-          title="Max Elo"
+          title="Max Basic Elo"
           value={userStats.maxElo}
           icon="🏅"
           iconBgColor="bg-red-100 dark:bg-red-900"
@@ -254,9 +252,9 @@ export function Dashboard() {
           loading={userStats.loading}
         />
         <StatsCard
-          title="Best Score"
-          value={userStats.highestScore}
-          icon="🎯"
+          title="Max Margin Elo"
+          value={userStats.maxMarginElo}
+          icon="💎"
           iconBgColor="bg-orange-100 dark:bg-orange-900"
           iconColor="text-orange-600 dark:text-orange-400"
           loading={userStats.loading}
@@ -277,6 +275,30 @@ export function Dashboard() {
           iconColor="text-purple-600 dark:text-purple-400"
           loading={userStats.loading}
         />
+      </div>
+
+      {/* Stats Cards - Row 3 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard
+          title="Average Score"
+          value={userStats.averageScore}
+          icon="📈"
+          iconBgColor="bg-cyan-100 dark:bg-cyan-900"
+          iconColor="text-cyan-600 dark:text-cyan-400"
+          loading={userStats.loading}
+        />
+        <StatsCard
+          title="Best Score"
+          value={userStats.highestScore}
+          icon="🎯"
+          iconBgColor="bg-pink-100 dark:bg-pink-900"
+          iconColor="text-pink-600 dark:text-pink-400"
+          loading={userStats.loading}
+        />
+        <div className="hidden lg:block"></div>{' '}
+        {/* Empty space for 4-column layout */}
+        <div className="hidden lg:block"></div>{' '}
+        {/* Empty space for 4-column layout */}
       </div>
 
       {/* Score History Chart and Elo Chart */}

@@ -25,10 +25,18 @@ interface EloHistory {
   margin_elo: number;
 }
 
+interface CurrentElo {
+  user_id: string;
+  basic_elo: number;
+  margin_elo: number;
+}
+
 interface PlayerStats {
   player: Player;
-  currentElo: number;
-  maxElo: number;
+  currentBasicElo: number;
+  currentMarginElo: number;
+  maxBasicElo: number;
+  maxMarginElo: number;
   averageScore: number;
   highestScore: number;
   bestStreak: number;
@@ -39,6 +47,7 @@ export function Leaderboard() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [eloHistory, setEloHistory] = useState<EloHistory[]>([]);
+  const [currentElos, setCurrentElos] = useState<CurrentElo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -113,6 +122,20 @@ export function Leaderboard() {
       }
 
       setEloHistory(eloData || []);
+
+      // Load current Elo values
+      const { data: currentEloData, error: currentEloError } = await supabase
+        .from('current_elos')
+        .select('*');
+
+      console.log('Current Elo Data:', currentEloData);
+      console.log('Current Elo Error:', currentEloError);
+
+      if (currentEloError) {
+        console.error('Error loading current Elo:', currentEloError);
+      }
+
+      setCurrentElos(currentEloData || []);
     } catch (error) {
       console.error('Error loading leaderboard data:', error);
     } finally {
@@ -129,12 +152,17 @@ export function Leaderboard() {
         const playerEloHistory = eloHistory.filter(
           (h) => h.user_id === player.id
         );
+        const playerCurrentElo = currentElos.find(
+          (e) => e.user_id === player.id
+        );
 
         if (playerGames.length === 0) {
           return {
             player,
-            currentElo: 1000,
-            maxElo: 1000,
+            currentBasicElo: 1500,
+            currentMarginElo: 1500,
+            maxBasicElo: 1500,
+            maxMarginElo: 1500,
             averageScore: 0,
             highestScore: 0,
             bestStreak: 0,
@@ -178,27 +206,41 @@ export function Leaderboard() {
           bestStreak = Math.max(bestStreak, tempStreak);
         }
 
-        // Get current and max ELO
-        const currentElo =
-          playerEloHistory.length > 0
+        // Get current Elo from current_elos table, fallback to history
+        const currentBasicElo =
+          playerCurrentElo?.basic_elo ??
+          (playerEloHistory.length > 0
             ? playerEloHistory[playerEloHistory.length - 1].basic_elo
-            : 1000;
-        const maxElo =
+            : 1500);
+        const currentMarginElo =
+          playerCurrentElo?.margin_elo ??
+          (playerEloHistory.length > 0
+            ? playerEloHistory[playerEloHistory.length - 1].margin_elo
+            : 1500);
+
+        // Get max Elo from history
+        const maxBasicElo =
           playerEloHistory.length > 0
             ? Math.max(...playerEloHistory.map((h) => h.basic_elo))
-            : 1000;
+            : currentBasicElo;
+        const maxMarginElo =
+          playerEloHistory.length > 0
+            ? Math.max(...playerEloHistory.map((h) => h.margin_elo))
+            : currentMarginElo;
 
         return {
           player,
-          currentElo,
-          maxElo,
+          currentBasicElo,
+          currentMarginElo,
+          maxBasicElo,
+          maxMarginElo,
           averageScore,
           highestScore,
           bestStreak,
           currentStreak,
         };
       })
-      .sort((a, b) => b.currentElo - a.currentElo); // Sort by current ELO descending
+      .sort((a, b) => b.currentBasicElo - a.currentBasicElo); // Sort by current basic ELO descending
   };
 
   const playerStats = calculatePlayerStats();
@@ -281,16 +323,23 @@ export function Leaderboard() {
                               ? '🥉'
                               : `${index + 1}.`}
                       </span>
-                      <span>{stats.player.display_name}</span>
+                      <button
+                        onClick={() => {
+                          window.location.hash = `#user-${stats.player.id}`;
+                        }}
+                        className="hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer"
+                      >
+                        {stats.player.display_name}
+                      </button>
                     </div>
                   </td>
                   <td className="text-center py-3 px-4 text-gray-600 dark:text-gray-400">
                     <span className="font-semibold text-blue-600 dark:text-blue-400">
-                      {Math.round(stats.currentElo)}
+                      {Math.round(stats.currentBasicElo)}
                     </span>
                   </td>
                   <td className="text-center py-3 px-4 text-gray-600 dark:text-gray-400">
-                    {Math.round(stats.maxElo)}
+                    {Math.round(stats.maxBasicElo)}
                   </td>
                   <td className="text-center py-3 px-4 text-gray-600 dark:text-gray-400">
                     {stats.averageScore.toLocaleString()}

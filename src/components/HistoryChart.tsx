@@ -243,7 +243,7 @@ export function HistoryChart({
               }
 
               return (
-                <g key={data.date}>
+                <g key={`${data.date}-${index}`}>
                   <circle
                     cx={x}
                     cy={y}
@@ -271,7 +271,7 @@ export function HistoryChart({
 
                 return (
                   <text
-                    key={data.date}
+                    key={`${data.date}-${index}`}
                     x={x}
                     y={chartHeight - 5}
                     textAnchor="middle"
