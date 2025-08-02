@@ -10,12 +10,12 @@ export function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="h-screen bg-gray-50 dark:bg-gray-900 overflow-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Topbar */}
       <Topbar />
 
-      {/* Main Layout - Subtract topbar height */}
-      <div className="flex h-[calc(100vh-4rem)]">
+      {/* Main Layout */}
+      <div className="flex">
         {/* Sidebar */}
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
@@ -45,7 +45,7 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           {/* Page Content */}
-          <main className="flex-1 p-6">{children}</main>
+          <main className="flex-1 p-6 overflow-y-auto">{children}</main>
         </div>
       </div>
     </div>

@@ -128,9 +128,6 @@ export function Leaderboard() {
         .from('current_elos')
         .select('*');
 
-      console.log('Current Elo Data:', currentEloData);
-      console.log('Current Elo Error:', currentEloError);
-
       if (currentEloError) {
         console.error('Error loading current Elo:', currentEloError);
       }
@@ -377,6 +374,681 @@ export function Leaderboard() {
           </div>
         )}
       </div>
+
+      {/* Charts Section - Side by Side */}
+      {playerStats.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Elo History Plot */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Elo History - All Players
+            </h2>
+            <EloHistoryPlot playerStats={playerStats} eloHistory={eloHistory} />
+          </div>
+
+          {/* Score History Plot */}
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              Score History - All Players
+            </h2>
+            <ScoreHistoryPlot playerStats={playerStats} games={games} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Score History Plot Component
+function ScoreHistoryPlot({
+  playerStats,
+  games,
+}: {
+  playerStats: PlayerStats[];
+  games: Game[];
+}) {
+  const width = 800;
+  const height = 400;
+  const margin = { top: 20, right: 80, bottom: 60, left: 60 }; // Increased right margin even more
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  // Get all unique dates from games
+  const allDates = [...new Set(games.map((g) => g.game_date))].sort();
+
+  // Create player data with display names - use consistent order from playerStats
+  const playersWithNames = playerStats.map((player) => ({
+    userId: player.player.id,
+    displayName: player.player.display_name,
+    color: getPlayerColor(
+      player.player.id,
+      playerStats.map((p) => p.player.id)
+    ),
+  }));
+
+  // Calculate scales
+  const dateRange = {
+    min: new Date(allDates[0]).getTime(),
+    max: new Date(allDates[allDates.length - 1]).getTime(),
+  };
+
+  const scoreRange = {
+    min: Math.min(...games.map((g) => g.total_score)),
+    max: Math.max(...games.map((g) => g.total_score)),
+  };
+
+  // Handle single date case
+  const xScale = (date: string) => {
+    if (allDates.length === 1) {
+      return margin.left + chartWidth / 2; // Center the single point
+    }
+    return (
+      margin.left +
+      ((new Date(date).getTime() - dateRange.min) /
+        (dateRange.max - dateRange.min)) *
+        chartWidth
+    );
+  };
+
+  const yScale = (score: number) => {
+    if (scoreRange.max === scoreRange.min) {
+      return margin.top + chartHeight / 2; // Center if all values are the same
+    }
+    return (
+      margin.top +
+      chartHeight -
+      ((score - scoreRange.min) / (scoreRange.max - scoreRange.min)) *
+        chartHeight
+    );
+  };
+
+  // Helper function to get player color - consistent across charts
+  function getPlayerColor(userId: string, allPlayers: string[]) {
+    const colors = [
+      '#3b82f6',
+      '#10b981',
+      '#f59e0b',
+      '#ef4444',
+      '#8b5cf6',
+      '#06b6d4',
+      '#f97316',
+      '#84cc16',
+    ];
+    const index = allPlayers.indexOf(userId);
+    return colors[index % colors.length];
+  }
+
+  // Format date for display - shorter format
+  function formatDate(dateStr: string) {
+    const date = new Date(dateStr);
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  }
+
+  // Show only some dates to prevent overlap
+  function shouldShowDateLabel(date: string, index: number) {
+    if (allDates.length <= 5) return true; // Show all if few dates
+    if (allDates.length <= 10) return index % 2 === 0; // Show every other if 6-10 dates
+    return index % 3 === 0; // Show every third if many dates
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <svg width={width} height={height} className="w-full max-w-full">
+        {/* Grid lines */}
+        <g className="text-gray-300 dark:text-gray-600">
+          {/* Vertical grid lines for dates */}
+          {allDates.map((date, i) => {
+            const x = xScale(date);
+            return (
+              <line
+                key={`grid-x-${date}-${i}`}
+                x1={x}
+                y1={margin.top}
+                x2={x}
+                y2={margin.top + chartHeight}
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity="0.3"
+              />
+            );
+          })}
+
+          {/* Horizontal grid lines for scores */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const score =
+              scoreRange.min + (i * (scoreRange.max - scoreRange.min)) / 4;
+            const y = yScale(score);
+            return (
+              <line
+                key={`grid-y-${i}`}
+                x1={margin.left}
+                y1={y}
+                x2={margin.left + chartWidth}
+                y2={y}
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity="0.3"
+              />
+            );
+          })}
+        </g>
+
+        {/* Plot lines for each player */}
+        {playersWithNames.map((player) => {
+          const playerGames = games
+            .filter((g) => g.user_id === player.userId)
+            .sort(
+              (a, b) =>
+                new Date(a.game_date).getTime() -
+                new Date(b.game_date).getTime()
+            );
+
+          if (playerGames.length === 0) {
+            return (
+              <g key={player.userId}>
+                {/* Show a placeholder point for players without games */}
+                <circle
+                  cx={margin.left + chartWidth / 2}
+                  cy={margin.top + chartHeight / 2}
+                  r="4"
+                  fill={player.color}
+                  opacity="0.5"
+                  className="hover:r-6 transition-all duration-200"
+                />
+                <text
+                  x={margin.left + chartWidth / 2}
+                  y={margin.top + chartHeight / 2 + 20}
+                  textAnchor="middle"
+                  className="text-xs text-gray-600 dark:text-gray-400"
+                >
+                  {player.displayName} (No games)
+                </text>
+              </g>
+            );
+          }
+
+          // Create path for the line
+          const pathData = playerGames
+            .map((g) => `${xScale(g.game_date)},${yScale(g.total_score)}`)
+            .join(' L ');
+
+          return (
+            <g key={player.userId}>
+              {/* Line */}
+              {playerGames.length > 1 && (
+                <path
+                  d={`M ${pathData}`}
+                  stroke={player.color}
+                  strokeWidth="2"
+                  fill="none"
+                  className="hover:stroke-width-3 transition-all duration-200"
+                />
+              )}
+
+              {/* Data points */}
+              {playerGames.map((game, index) => (
+                <circle
+                  key={`${player.userId}-${game.game_date}-${index}`}
+                  cx={xScale(game.game_date)}
+                  cy={yScale(game.total_score)}
+                  r="4"
+                  fill={player.color}
+                  className="hover:r-6 transition-all duration-200"
+                />
+              ))}
+            </g>
+          );
+        })}
+
+        {/* X-axis labels - only show some to prevent overlap */}
+        <g className="text-gray-600 dark:text-gray-400 text-xs">
+          {allDates.map((date, i) => {
+            if (!shouldShowDateLabel(date, i)) return null;
+            const x = xScale(date);
+            return (
+              <text
+                key={`label-${date}-${i}`}
+                x={x}
+                y={height - 10}
+                textAnchor="middle"
+                className="text-xs"
+              >
+                {formatDate(date)}
+              </text>
+            );
+          })}
+        </g>
+
+        {/* Y-axis labels */}
+        <g className="text-gray-600 dark:text-gray-400 text-xs">
+          {[0, 1, 2, 3, 4].map((i) => {
+            const score =
+              scoreRange.min + (i * (scoreRange.max - scoreRange.min)) / 4;
+            const y = yScale(score);
+            return (
+              <text
+                key={`y-label-${i}`}
+                x={margin.left - 10}
+                y={y + 3}
+                textAnchor="end"
+                className="text-xs"
+              >
+                {Math.round(score).toLocaleString()}
+              </text>
+            );
+          })}
+        </g>
+
+        {/* Axes */}
+        <g className="text-gray-600 dark:text-gray-400">
+          {/* X-axis */}
+          <line
+            x1={margin.left}
+            y1={margin.top + chartHeight}
+            x2={margin.left + chartWidth}
+            y2={margin.top + chartHeight}
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <text
+            x={margin.left + chartWidth / 2}
+            y={height - 30}
+            textAnchor="middle"
+            className="text-sm font-medium"
+          >
+            Date
+          </text>
+
+          {/* Y-axis */}
+          <line
+            x1={margin.left}
+            y1={margin.top}
+            x2={margin.left}
+            y2={margin.top + chartHeight}
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <text
+            x={10}
+            y={margin.top + chartHeight / 2}
+            textAnchor="middle"
+            transform={`rotate(-90, 10, ${margin.top + chartHeight / 2})`}
+            className="text-sm font-medium"
+          >
+            Total Score
+          </text>
+        </g>
+
+        {/* Legend */}
+        <g className="text-xs">
+          {playersWithNames.map((player, index) => {
+            const row = Math.floor(index / 3); // 3 items per row
+            const col = index % 3;
+            const xOffset = col * 200; // 200px spacing between columns
+            const yOffset = row * 20; // 20px spacing between rows
+
+            return (
+              <g
+                key={`legend-${player.userId}`}
+                transform={`translate(${margin.left + xOffset}, ${margin.top - 20 - yOffset})`}
+              >
+                <rect
+                  x="0"
+                  y="0"
+                  width="12"
+                  height="12"
+                  fill={player.color}
+                  rx="2"
+                />
+                <text x="20" y="9" className="text-gray-900 dark:text-white">
+                  {player.displayName}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+// Elo History Plot Component
+function EloHistoryPlot({
+  playerStats,
+  eloHistory,
+}: {
+  playerStats: PlayerStats[];
+  eloHistory: EloHistory[];
+}) {
+  const width = 800;
+  const height = 400;
+  const margin = { top: 20, right: 80, bottom: 60, left: 60 }; // Increased right margin even more
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  // Get all unique dates from elo history
+  const allDates = [...new Set(eloHistory.map((h) => h.game_date))].sort();
+
+  // Create player data with display names - use consistent order from playerStats
+  const playersWithNames = playerStats.map((player) => ({
+    userId: player.player.id,
+    displayName: player.player.display_name,
+    color: getPlayerColor(
+      player.player.id,
+      playerStats.map((p) => p.player.id)
+    ),
+  }));
+
+  // Check if we have data
+  if (allDates.length === 0 || eloHistory.length === 0) {
+    return (
+      <div className="text-center text-gray-500 dark:text-gray-400 py-16">
+        <div className="text-4xl mb-2">📊</div>
+        <p>No Elo history data available</p>
+        <p className="text-sm">
+          Elo history will appear here once players have played games and Elo
+          has been calculated
+        </p>
+      </div>
+    );
+  }
+
+  // Calculate scales
+  const dateRange = {
+    min: new Date(allDates[0]).getTime(),
+    max: new Date(allDates[allDates.length - 1]).getTime(),
+  };
+
+  const eloRange = {
+    min: Math.min(...eloHistory.map((h) => h.basic_elo)),
+    max: Math.max(...eloHistory.map((h) => h.basic_elo)),
+  };
+
+  // Handle single date case
+  const xScale = (date: string) => {
+    if (allDates.length === 1) {
+      return margin.left + chartWidth / 2; // Center the single point
+    }
+    return (
+      margin.left +
+      ((new Date(date).getTime() - dateRange.min) /
+        (dateRange.max - dateRange.min)) *
+        chartWidth
+    );
+  };
+
+  const yScale = (elo: number) => {
+    if (eloRange.max === eloRange.min) {
+      return margin.top + chartHeight / 2; // Center if all values are the same
+    }
+    return (
+      margin.top +
+      chartHeight -
+      ((elo - eloRange.min) / (eloRange.max - eloRange.min)) * chartHeight
+    );
+  };
+
+  // Helper function to get player color - consistent across charts
+  function getPlayerColor(userId: string, allPlayers: string[]) {
+    const colors = [
+      '#3b82f6',
+      '#10b981',
+      '#f59e0b',
+      '#ef4444',
+      '#8b5cf6',
+      '#06b6d4',
+      '#f97316',
+      '#84cc16',
+    ];
+    const index = allPlayers.indexOf(userId);
+    return colors[index % colors.length];
+  }
+
+  // Format date for display - shorter format
+  function formatDate(dateStr: string) {
+    const date = new Date(dateStr);
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  }
+
+  // Show only some dates to prevent overlap
+  function shouldShowDateLabel(date: string, index: number) {
+    if (allDates.length <= 5) return true; // Show all if few dates
+    if (allDates.length <= 10) return index % 2 === 0; // Show every other if 6-10 dates
+    return index % 3 === 0; // Show every third if many dates
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <svg width={width} height={height} className="w-full max-w-full">
+        {/* Grid lines */}
+        <g className="text-gray-300 dark:text-gray-600">
+          {/* Vertical grid lines for dates */}
+          {allDates.map((date, i) => {
+            const x = xScale(date);
+            return (
+              <line
+                key={`grid-x-${date}-${i}`}
+                x1={x}
+                y1={margin.top}
+                x2={x}
+                y2={margin.top + chartHeight}
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity="0.3"
+              />
+            );
+          })}
+
+          {/* Horizontal grid lines for Elo */}
+          {[0, 1, 2, 3, 4].map((i) => {
+            const elo = eloRange.min + (i * (eloRange.max - eloRange.min)) / 4;
+            const y = yScale(elo);
+            return (
+              <line
+                key={`grid-y-${i}`}
+                x1={margin.left}
+                y1={y}
+                x2={margin.left + chartWidth}
+                y2={y}
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity="0.3"
+              />
+            );
+          })}
+        </g>
+
+        {/* Plot lines for each player */}
+        {playersWithNames.map((player) => {
+          const playerHistory = eloHistory
+            .filter((h) => h.user_id === player.userId)
+            .sort(
+              (a, b) =>
+                new Date(a.game_date).getTime() -
+                new Date(b.game_date).getTime()
+            );
+
+          // Show players even if they have no Elo history yet
+          if (playerHistory.length === 0) {
+            return (
+              <g key={player.userId}>
+                {/* Show a placeholder point for players without Elo history */}
+                <circle
+                  cx={margin.left + chartWidth / 2}
+                  cy={margin.top + chartHeight / 2}
+                  r="4"
+                  fill={player.color}
+                  opacity="0.5"
+                  className="hover:r-6 transition-all duration-200"
+                />
+                <text
+                  x={margin.left + chartWidth / 2}
+                  y={margin.top + chartHeight / 2 + 20}
+                  textAnchor="middle"
+                  className="text-xs text-gray-600 dark:text-gray-400"
+                >
+                  {player.displayName} (No Elo history)
+                </text>
+              </g>
+            );
+          }
+
+          // Remove duplicates by keeping only the latest entry per date
+          const uniqueHistory = playerHistory.reduce(
+            (acc, entry) => {
+              const existingIndex = acc.findIndex(
+                (e) => e.game_date === entry.game_date
+              );
+              if (existingIndex >= 0) {
+                acc[existingIndex] = entry; // Replace with latest
+              } else {
+                acc.push(entry);
+              }
+              return acc;
+            },
+            [] as typeof playerHistory
+          );
+
+          // Create path for the line
+          const pathData = uniqueHistory
+            .map((h) => `${xScale(h.game_date)},${yScale(h.basic_elo)}`)
+            .join(' L ');
+
+          return (
+            <g key={player.userId}>
+              {/* Line */}
+              {uniqueHistory.length > 1 && (
+                <path
+                  d={`M ${pathData}`}
+                  stroke={player.color}
+                  strokeWidth="2"
+                  fill="none"
+                  className="hover:stroke-width-3 transition-all duration-200"
+                />
+              )}
+
+              {/* Data points */}
+              {uniqueHistory.map((entry, index) => (
+                <circle
+                  key={`${player.userId}-${entry.game_date}-${index}`}
+                  cx={xScale(entry.game_date)}
+                  cy={yScale(entry.basic_elo)}
+                  r="4"
+                  fill={player.color}
+                  className="hover:r-6 transition-all duration-200"
+                />
+              ))}
+            </g>
+          );
+        })}
+
+        {/* X-axis labels - only show some to prevent overlap */}
+        <g className="text-gray-600 dark:text-gray-400 text-xs">
+          {allDates.map((date, i) => {
+            if (!shouldShowDateLabel(date, i)) return null;
+            const x = xScale(date);
+            return (
+              <text
+                key={`label-${date}-${i}`}
+                x={x}
+                y={height - 10}
+                textAnchor="middle"
+                className="text-xs"
+              >
+                {formatDate(date)}
+              </text>
+            );
+          })}
+        </g>
+
+        {/* Y-axis labels */}
+        <g className="text-gray-600 dark:text-gray-400 text-xs">
+          {[0, 1, 2, 3, 4].map((i) => {
+            const elo = eloRange.min + (i * (eloRange.max - eloRange.min)) / 4;
+            const y = yScale(elo);
+            return (
+              <text
+                key={`y-label-${i}`}
+                x={margin.left - 10}
+                y={y + 3}
+                textAnchor="end"
+                className="text-xs"
+              >
+                {Math.round(elo)}
+              </text>
+            );
+          })}
+        </g>
+
+        {/* Axes */}
+        <g className="text-gray-600 dark:text-gray-400">
+          {/* X-axis */}
+          <line
+            x1={margin.left}
+            y1={margin.top + chartHeight}
+            x2={margin.left + chartWidth}
+            y2={margin.top + chartHeight}
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <text
+            x={margin.left + chartWidth / 2}
+            y={height - 30}
+            textAnchor="middle"
+            className="text-sm font-medium"
+          >
+            Date
+          </text>
+
+          {/* Y-axis */}
+          <line
+            x1={margin.left}
+            y1={margin.top}
+            x2={margin.left}
+            y2={margin.top + chartHeight}
+            stroke="currentColor"
+            strokeWidth="2"
+          />
+          <text
+            x={10}
+            y={margin.top + chartHeight / 2}
+            textAnchor="middle"
+            transform={`rotate(-90, 10, ${margin.top + chartHeight / 2})`}
+            className="text-sm font-medium"
+          >
+            Basic Elo
+          </text>
+        </g>
+
+        {/* Legend */}
+        <g className="text-xs">
+          {playersWithNames.map((player, index) => {
+            const row = Math.floor(index / 3); // 3 items per row
+            const col = index % 3;
+            const xOffset = col * 200; // 200px spacing between columns
+            const yOffset = row * 20; // 20px spacing between rows
+
+            return (
+              <g
+                key={`legend-${player.userId}`}
+                transform={`translate(${margin.left + xOffset}, ${margin.top - 20 - yOffset})`}
+              >
+                <rect
+                  x="0"
+                  y="0"
+                  width="12"
+                  height="12"
+                  fill={player.color}
+                  rx="2"
+                />
+                <text x="20" y="9" className="text-gray-900 dark:text-white">
+                  {player.displayName}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
     </div>
   );
 }
