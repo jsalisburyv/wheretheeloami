@@ -30,6 +30,17 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const handleProfileClick = () => {
     window.location.hash = '#profile';
+    // Auto-close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  };
+
+  const handleNavClick = () => {
+    // Auto-close sidebar on mobile
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
   };
 
   return (
@@ -68,6 +79,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               <a
                 key={item.name}
                 href={item.href}
+                onClick={handleNavClick}
                 className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
               >
                 <span className="mr-3 text-lg">{item.icon}</span>
