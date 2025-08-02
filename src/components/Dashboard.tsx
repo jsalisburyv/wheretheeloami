@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useUserStats } from '../hooks/useUserStats';
+import { supabase } from '../lib/supabase';
 import { ProfilePage } from './ProfilePage';
 import { ScoreSubmission } from './ScoreSubmission';
 import { Leaderboard } from './Leaderboard';
@@ -11,6 +12,8 @@ export function Dashboard() {
   const { user } = useAuth();
   const userStats = useUserStats();
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [updatingElo, setUpdatingElo] = useState(false);
+  const [eloUpdateMessage, setEloUpdateMessage] = useState('');
 
   // Get display name: display_name from metadata if set, otherwise email prefix
   const getDisplayName = () => {
@@ -78,17 +81,130 @@ export function Dashboard() {
 
   const formatElo = (elo: number) => elo.toLocaleString();
 
+  const updateEloRatings = async () => {
+    setUpdatingElo(true);
+    setEloUpdateMessage('');
+
+    try {
+      // Get current session for access token
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session) {
+        setEloUpdateMessage('Error: Not authenticated');
+        return;
+      }
+
+      // Call the Edge Function using Supabase client
+      console.log('Calling Edge Function: elo-update');
+      console.log('Supabase URL:', import.meta.env.VITE_SUPABASE_URL);
+
+      try {
+        // Try using the REST API directly with proper headers
+        console.log('Testing function availability...');
+
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elo-update`,
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            },
+            body: JSON.stringify({
+              game_date: new Date().toISOString().split('T')[0],
+            }),
+          }
+        );
+
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+
+        let result;
+        try {
+          result = responseText ? JSON.parse(responseText) : {};
+        } catch (parseError) {
+          console.error('JSON Parse Error:', parseError);
+          setEloUpdateMessage(
+            `Error: Invalid response from server - ${responseText}`
+          );
+          return;
+        }
+
+        if (!response.ok) {
+          setEloUpdateMessage(
+            `Error: ${result.error || 'Failed to update Elo ratings'} (Status: ${response.status})`
+          );
+        } else {
+          setEloUpdateMessage(
+            `Success! ${result.message || 'Elo ratings updated successfully.'}`
+          );
+          window.location.reload();
+        }
+      } catch (fetchError) {
+        console.error('Fetch Error:', fetchError);
+        setEloUpdateMessage(
+          `Error: ${fetchError instanceof Error ? fetchError.message : 'Unknown error occurred'}`
+        );
+      }
+    } catch (err) {
+      console.error('Edge Function Error:', err);
+      setEloUpdateMessage(
+        `Error: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
+    } finally {
+      setUpdatingElo(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Welcome back, {getDisplayName()}!
-        </h1>
-        <p className="text-gray-600 dark:text-gray-300">
-          Ready for today's GeoGuessr challenge? Submit your score and see how
-          you rank against your friends.
-        </p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              Welcome back, {getDisplayName()}!
+            </h1>
+            <p className="text-gray-600 dark:text-gray-300">
+              Ready for today's GeoGuessr challenge? Submit your score and see
+              how you rank against your friends.
+            </p>
+          </div>
+          <button
+            onClick={updateEloRatings}
+            disabled={updatingElo}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2"
+          >
+            {updatingElo ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Updating...</span>
+              </>
+            ) : (
+              <>
+                <span>⚡</span>
+                <span>Update Elo</span>
+              </>
+            )}
+          </button>
+        </div>
+        {eloUpdateMessage && (
+          <div
+            className={`mt-4 p-3 rounded-lg text-sm ${
+              eloUpdateMessage.startsWith('Error')
+                ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+            }`}
+          >
+            {eloUpdateMessage}
+          </div>
+        )}
       </div>
 
       {/* Stats Cards - Row 1 */}

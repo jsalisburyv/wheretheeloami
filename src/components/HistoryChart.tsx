@@ -138,23 +138,34 @@ export function HistoryChart({
   const innerWidth = chartWidth - 2 * padding;
   const innerHeight = chartHeight - 2 * padding;
 
-  const values = historyData.map((d) => d.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
+  const values = historyData
+    .map((d) => d.value)
+    .filter((v) => !isNaN(v) && isFinite(v));
+  const minValue = values.length > 0 ? Math.min(...values) : 0;
+  const maxValue =
+    values.length > 0 ? Math.max(...values) : type === 'score' ? 5000 : 1000;
   const valueRange = maxValue - minValue || (type === 'score' ? 5000 : 200); // fallback
 
   // Create SVG path for the line chart
   const createPath = () => {
     if (historyData.length < 2) return '';
 
-    const points = historyData.map((data, index) => {
-      const x = padding + (index / (historyData.length - 1)) * innerWidth;
-      const normalizedValue = (data.value - minValue) / valueRange;
-      const y = padding + innerHeight - normalizedValue * innerHeight;
-      return `${x},${y}`;
-    });
+    const points = historyData
+      .map((data, index) => {
+        const x = padding + (index / (historyData.length - 1)) * innerWidth;
+        const normalizedValue = (data.value - minValue) / valueRange;
+        const y = padding + innerHeight - normalizedValue * innerHeight;
 
-    return `M ${points.join(' L ')}`;
+        // Validate coordinates to prevent NaN
+        if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+          return null;
+        }
+
+        return `${x},${y}`;
+      })
+      .filter((point) => point !== null);
+
+    return points.length > 0 ? `M ${points.join(' L ')}` : '';
   };
 
   // Create grid lines
@@ -172,81 +183,107 @@ export function HistoryChart({
         {title}
       </h3>
 
-      <div className="overflow-x-auto">
-        <svg width={chartWidth} height={chartHeight} className="mx-auto">
-          {/* Grid lines */}
-          {gridLines.map((line, index) => (
-            <g key={index}>
-              <line
-                x1={padding}
-                y1={line.y}
-                x2={chartWidth - padding}
-                y2={line.y}
-                stroke="#e5e7eb"
-                strokeWidth="1"
-                className="dark:stroke-gray-600"
-              />
-              <text
-                x={padding - 10}
-                y={line.y + 4}
-                textAnchor="end"
-                className="text-xs fill-gray-500 dark:fill-gray-400"
-              >
-                {formatValue(line.value)}
-              </text>
-            </g>
-          ))}
-
-          {/* Line chart */}
-          <path
-            d={createPath()}
-            stroke={color}
-            strokeWidth="3"
-            fill="none"
-            className={colorClass}
-          />
-
-          {/* Data points */}
-          {historyData.map((data, index) => {
-            const x = padding + (index / (historyData.length - 1)) * innerWidth;
-            const normalizedValue = (data.value - minValue) / valueRange;
-            const y = padding + innerHeight - normalizedValue * innerHeight;
-
-            return (
-              <g key={data.date}>
-                <circle
-                  cx={x}
-                  cy={y}
-                  r="4"
-                  fill={getValueColor(data.value)}
-                  className="hover:r-6 transition-all duration-200"
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      ) : historyData.length === 0 ? (
+        <div className="flex items-center justify-center h-64 text-gray-500 dark:text-gray-400">
+          <div className="text-center">
+            <div className="text-4xl mb-2">📊</div>
+            <p>No {type} data available</p>
+            <p className="text-sm">Submit some scores to see your history</p>
+          </div>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <svg width={chartWidth} height={chartHeight} className="mx-auto">
+            {/* Grid lines */}
+            {gridLines.map((line, index) => (
+              <g key={index}>
+                <line
+                  x1={padding}
+                  y1={line.y}
+                  x2={chartWidth - padding}
+                  y2={line.y}
+                  stroke="#e5e7eb"
+                  strokeWidth="1"
+                  className="dark:stroke-gray-600"
                 />
-                <title>
-                  {formatDate(data.date)}: {formatValue(data.value)}
-                </title>
-              </g>
-            );
-          })}
-
-          {/* X-axis labels */}
-          {historyData.length <= 10 &&
-            historyData.map((data, index) => {
-              const x =
-                padding + (index / (historyData.length - 1)) * innerWidth;
-              return (
                 <text
-                  key={data.date}
-                  x={x}
-                  y={chartHeight - 5}
-                  textAnchor="middle"
+                  x={padding - 10}
+                  y={line.y + 4}
+                  textAnchor="end"
                   className="text-xs fill-gray-500 dark:fill-gray-400"
                 >
-                  {formatDate(data.date)}
+                  {formatValue(line.value)}
                 </text>
+              </g>
+            ))}
+
+            {/* Line chart */}
+            <path
+              d={createPath()}
+              stroke={color}
+              strokeWidth="3"
+              fill="none"
+              className={colorClass}
+            />
+
+            {/* Data points */}
+            {historyData.map((data, index) => {
+              const x =
+                padding + (index / (historyData.length - 1)) * innerWidth;
+              const normalizedValue = (data.value - minValue) / valueRange;
+              const y = padding + innerHeight - normalizedValue * innerHeight;
+
+              // Validate coordinates to prevent NaN
+              if (isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)) {
+                return null;
+              }
+
+              return (
+                <g key={data.date}>
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="4"
+                    fill={getValueColor(data.value)}
+                    className="hover:r-6 transition-all duration-200"
+                  />
+                  <title>
+                    {formatDate(data.date)}: {formatValue(data.value)}
+                  </title>
+                </g>
               );
             })}
-        </svg>
-      </div>
+
+            {/* X-axis labels */}
+            {historyData.length <= 10 &&
+              historyData.map((data, index) => {
+                const x =
+                  padding + (index / (historyData.length - 1)) * innerWidth;
+
+                // Validate coordinates to prevent NaN
+                if (isNaN(x) || !isFinite(x)) {
+                  return null;
+                }
+
+                return (
+                  <text
+                    key={data.date}
+                    x={x}
+                    y={chartHeight - 5}
+                    textAnchor="middle"
+                    className="text-xs fill-gray-500 dark:fill-gray-400"
+                  >
+                    {formatDate(data.date)}
+                  </text>
+                );
+              })}
+          </svg>
+        </div>
+      )}
 
       {/* Legend */}
       <div className="mt-4 flex justify-center space-x-4 text-xs">
