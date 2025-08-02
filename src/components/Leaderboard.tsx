@@ -485,7 +485,7 @@ function ScoreHistoryPlot({
   }
 
   // Show only some dates to prevent overlap
-  function shouldShowDateLabel(date: string, index: number) {
+  function shouldShowDateLabel(_date: string, index: number) {
     if (allDates.length <= 5) return true; // Show all if few dates
     if (allDates.length <= 10) return index % 2 === 0; // Show every other if 6-10 dates
     return index % 3 === 0; // Show every third if many dates
@@ -811,7 +811,7 @@ function EloHistoryPlot({
   }
 
   // Show only some dates to prevent overlap
-  function shouldShowDateLabel(date: string, index: number) {
+  function shouldShowDateLabel(_date: string, index: number) {
     if (allDates.length <= 5) return true; // Show all if few dates
     if (allDates.length <= 10) return index % 2 === 0; // Show every other if 6-10 dates
     return index % 3 === 0; // Show every third if many dates
