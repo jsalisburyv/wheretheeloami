@@ -62,6 +62,13 @@ export function ScoreSubmission() {
     return null;
   };
 
+  const handleCopyScore = () => {
+    const { round1, round2, round3, totalScore } = scoreData;
+    const scoreString = `${round1}+${round2}+${round3}=${totalScore}`;
+    navigator.clipboard.writeText(scoreString);
+    setMessage('Score copied to clipboard!');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
@@ -208,19 +215,30 @@ export function ScoreSubmission() {
 
           {/* Total Score Display */}
           <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center gap-4">
               <span className="text-lg font-medium text-gray-900 dark:text-white">
                 Total Score
               </span>
-              <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                {scoreData.totalScore.toLocaleString()}
-              </span>
+              <div className="flex gap-2 items-center">
+                <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {scoreData.totalScore.toLocaleString()}
+                </span>
+                <button
+                  type="button"
+                  onClick={handleCopyScore}
+                  className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white px-3 py-1 rounded-md text-sm font-medium"
+                  disabled={scoreData.totalScore === 0}
+                >
+                  Copy Score
+                </button>
+              </div>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Maximum possible: 15,000 points
             </p>
           </div>
 
+          
           {/* Message Display */}
           {message && (
             <div
